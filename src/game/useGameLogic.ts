@@ -171,31 +171,29 @@ export default function useGameLogic() {
   useEffect(() => {
     if (queueMonsters.length === 0) return;
 
-    setBattleFieldSlots((prevSlots) => {
-      const updatedSlots = [...prevSlots];
-      const newQueue = [...queueMonsters];
-      let filled = false;
+    let needUpdate = false;
+    const newQueue = [...queueMonsters];
 
-      for (let i = 0; i < updatedSlots.length; i++) {
-        if (updatedSlots[i].monster === null && newQueue.length > 0) {
-          updatedSlots[i] = {
-            ...updatedSlots[i],
-            monster: newQueue.shift()!,
-            poisonedBy: null,
-            lastIcedBy: null,
-          };
-          filled = true;
-        }
+    const updated = battlefieldSlots.map((slot) => {
+      if (slot.monster === null && newQueue.length > 0) {
+        needUpdate = true;
+        return {
+          ...slot,
+          monster: newQueue.shift()!,
+          poisonedBy: null,
+          lastIcedBy: null,
+        };
       }
-
-      if (filled) setQueueMonsters(newQueue);
-      return updatedSlots as [
-        BattleFieldSlot,
-        BattleFieldSlot,
-        BattleFieldSlot
-      ];
+      return slot;
     });
-  }, [battlefieldSlots, queueMonsters]);
+
+    if (needUpdate) {
+      setBattleFieldSlots(
+        updated as [BattleFieldSlot, BattleFieldSlot, BattleFieldSlot]
+      );
+      setQueueMonsters(newQueue);
+    }
+  }, [queueMonsters]); // ✅ 只依賴 queueMonsters
 
   const eventTable: GameEvent[] = [
     {
@@ -1058,6 +1056,7 @@ export default function useGameLogic() {
     addRandomMonstersToQueue,
     event,
     eventTable,
+    nextForcedEvent,
     setNextEvent,
     triggerEvent,
     clientLog,
@@ -1076,6 +1075,7 @@ export type {
   Player,
   Monster,
   BattleFieldSlot,
+  EventEffect,
   GameEvent,
   AttackAction,
   GameLog,
