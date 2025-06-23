@@ -1,0 +1,45 @@
+.copy-link {
+  position: relative;
+  display: inline-block;
+}
+
+/* 啟用狀態 */
+.copy-link.enabled {
+  color: #007bff;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+/* 未啟用狀態 */
+.copy-link.disabled {
+  color: red;
+  cursor: not-allowed;
+  font-weight: bold;
+}
+
+/* 使用偽元素顯示 Copied! */
+.copy-link.copied::after {
+  content: "Copied!";
+  position: absolute;
+  top: -10px;
+  left: 105%;
+  white-space: nowrap;
+  margin-left: 8px;
+  font-size: 0.9em;
+  color: #28ff28;
+  animation: floatUpFade 1.5s cubic-bezier(0, 0.3, 0.4, 1) forwards;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* 動畫定義：上飄 + 淡出 */
+@keyframes floatUpFade {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-25px);
+  }
+}

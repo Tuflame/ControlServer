@@ -1,0 +1,120 @@
+.main-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #242424;
+}
+
+.main-container h1,
+h2 {
+  color: #fce514;
+  font-size: 2rem;
+}
+
+.connect-status {
+  display: inline-flex;
+  flex-direction: row;
+}
+
+.controls-box {
+  display: flex;
+  flex-direction: row;
+}
+
+.phase-control,
+.player-controls,
+.monster-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0, 10px;
+  padding: 20px;
+}
+
+.player-slot {
+  border: #cdcdcd 1px solid;
+}
+
+.player-header {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  margin-left: 12px;
+  gap: 10px;
+}
+
+/* player-attributes: 三列區塊直排 OK */
+.player-attributes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 每一列內的 form-pair 區塊：設定為 grid 六欄 */
+.player-attributes > div {
+  display: grid;
+  grid-template-columns: repeat(3, 75px 120px); /* 3組 label + input */
+  gap: 8px;
+  align-items: center;
+}
+
+/* form-pair 不再需要 flex（因為已經是 grid） */
+.form-pair {
+  display: contents; /* 讓 label/input 直接參與 grid 排版，不再包一層格子 */
+}
+
+/* label/input 樣式維持 */
+.form-pair label {
+  width: 100%; /* 占滿格子即可，不用指定 60px */
+  text-align: center;
+}
+
+.form-pair input {
+  width: 80%;
+  text-align: center;
+  border: 1px solid #cdcdcd;
+  border-radius: 4px;
+}
+
+input:focus {
+  outline: none;
+  border-color: #fce514;
+}
+
+option:focus {
+  outline: none;
+  border-color: #fce514;
+}
+
+.gold {
+  color: #ffc413;
+}
+
+.mana {
+  color: #0051ff;
+}
+
+.fire {
+  color: #ff0000;
+}
+
+.water {
+  color: #33ccff;
+}
+
+.boom {
+  color: #ff7700;
+}
+
+.wood {
+  color: #00ff00;
+}
+
+.ice {
+  color: #aaffee;
+}
+
+.poison {
+  color: #aa00ff;
+}
