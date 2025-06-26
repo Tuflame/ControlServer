@@ -22,10 +22,62 @@ type Skill = {
   trigger: "onAppear" | "onHit" | "onTurnStart" | "onTurnEnd";
   applyEffect: (
     slotID: "A" | "B" | "C",
-    monster: Monster,
-    updateMonster: (updated: Monster) => void
+    battlefieldSlots: [BattleFieldSlot, BattleFieldSlot, BattleFieldSlot],
+    queueMonsters: Monster[],
+    updateBattlefieldSlots: (
+      updated: [BattleFieldSlot, BattleFieldSlot, BattleFieldSlot]
+    ) => void,
+    updateQueue: (updated: Monster[]) => void
   ) => void;
 };
+
+export const skillTable: Record<string, Skill> = {
+  屬性輪轉: {
+    name: "屬性輪轉",
+    description: "每受到一次攻擊，按照 火 → 水 → 木 → 火 的順序變換屬性。",
+    trigger: "onHit",
+    applyEffect: (slotid, slots, queue, updateSlots, updateQueue) => {
+      const order: ElementType[] = ["火", "水", "木"];
+      const slotIndex = ["A", "B", "C"].indexOf(slotid);
+      const monster = slots[slotIndex].monster;
+      if (!monster) return;
+      const nextIndex = (order.indexOf(monster.type) + 1) % order.length;
+      const newType = order[nextIndex];
+      monster.type = newType;
+      updateSlots(
+        slots.map((s, i) =>
+          i === slotIndex ? { ...s, monster: { ...monster } } : s
+        ) as [BattleFieldSlot, BattleFieldSlot, BattleFieldSlot]
+      );
+      console.log(
+        `[戰場${slotid}] ${monster.name} 的屬性輪轉技能觸發，變為 ${newType}`
+      );
+    },
+  },
+  恢復: {
+    name: "恢復",
+    description: "每回合結束時恢復 1 點生命值。",
+    trigger: "onTurnEnd",
+    applyEffect: (slotid, slots, queue, updateSlots, updateQueue) => {
+      const slotIndex = ["A", "B", "C"].indexOf(slotid);
+      const monster = slots[slotIndex].monster;
+      if (!monster) return;
+      const healed = Math.min(monster.HP + 2, monster.maxHP);
+
+      monster.HP = healed;
+      updateSlots(
+        slots.map((s, i) =>
+          i === slotIndex ? { ...s, monster: { ...monster } } : s
+        ) as [BattleFieldSlot, BattleFieldSlot, BattleFieldSlot]
+      );
+      console.log(
+        `[戰場${slotid}] ${monster.name} 恢復技能觸發，生命恢復至 ${healed}`
+      );
+    },
+  },
+};
+
+export const skillname = ["屬性輪轉", "恢復"];
 
 type Monster = {
   maxHP: number;
@@ -38,7 +90,7 @@ type Monster = {
     spellCards: SpellCardType | null;
   };
   imageUrl: string | null;
-  skill?: Skill[];
+  skill: string | null;
 };
 
 type BattleFieldSlot = {
@@ -83,7 +135,40 @@ type GameState = {
   log: GameLog[];
 };
 
-import { useState, useEffect, useRef } from "react";
+export const monsterNameTable: Record<number, Record<ElementType, string[]>> = {
+  1: {
+    火: ["火史萊姆", "火精靈", "火丘丘"],
+    水: ["水史萊姆", "水精靈", "冰丘丘"],
+    木: ["草史萊姆", "草精靈"],
+    無: ["骷髏", "鬼魂"],
+  },
+  2: {
+    火: ["燃燒史萊姆", "火山地精"],
+    水: ["液態史萊姆", "冰原地精"],
+    木: ["翠綠史萊姆", "森林地精"],
+    無: ["穴居人"],
+  },
+  3: {
+    火: ["Cappuccino Assassino", "Ballerina Cappuccina"],
+    水: ["Tralalero Tralala", "Trippi Troppi"],
+    木: ["BrrBrr Patapim", "Lirilì Larilà"],
+    無: ["TungTung Sahur", "Bombardiro Crocodilo"],
+  },
+  4: {
+    火: ["火焰巨人", "奧爾龍"],
+    水: ["冰霜巨人", "聶爾龍"],
+    木: ["森林巨人", "蜥蜴戰士"],
+    無: ["暗影巨人", "西諾克斯"],
+  },
+  5: {
+    火: ["三頭龍"],
+    水: ["三頭龍"],
+    木: ["三頭龍"],
+    無: ["暗影龍"],
+  },
+};
+
+import { useState, useEffect, useRef, useMemo } from "react";
 
 export default function useGameLogic() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -98,6 +183,7 @@ export default function useGameLogic() {
     { monster: null, id: "C", poisonedBy: null, lastIcedBy: null },
   ]);
   const [queueMonsters, setQueueMonsters] = useState<Monster[]>([]);
+  const [monsterAmount, setMonsterAmount] = useState<number>(0);
 
   const Goblin: Monster[] = [
     {
@@ -111,6 +197,7 @@ export default function useGameLogic() {
         spellCards: null,
       },
       imageUrl: null,
+      skill: null,
     },
     {
       maxHP: 5,
@@ -123,6 +210,7 @@ export default function useGameLogic() {
         spellCards: null,
       },
       imageUrl: null,
+      skill: null,
     },
     {
       maxHP: 5,
@@ -135,38 +223,9 @@ export default function useGameLogic() {
         spellCards: null,
       },
       imageUrl: null,
+      skill: null,
     },
   ];
-
-  const skillTable: Record<string, Skill> = {
-    屬性輪轉: {
-      name: "屬性輪轉",
-      description: "每受到一次攻擊，按照 火 → 水 → 木 → 火 的順序變換屬性。",
-      trigger: "onHit",
-      applyEffect: (slotid, monster, updateMonster) => {
-        const order: ElementType[] = ["火", "水", "木"];
-        const nextIndex = (order.indexOf(monster.type) + 1) % order.length;
-        const newType = order[nextIndex];
-        updateMonster({ ...monster, type: newType });
-        console.log(`屬性輪轉觸發，變為 ${newType}`);
-        addSupervisorLog(
-          `[戰場${slotid}] ${monster.name} 的屬性轉換，變為 ${newType}`
-        );
-      },
-    },
-    恢復: {
-      name: "恢復",
-      description: "每回合結束時恢復 1 點生命值。",
-      trigger: "onTurnEnd",
-      applyEffect: (slotid, monster, updateMonster) => {
-        const healed = Math.min(monster.HP + 2, monster.maxHP);
-        updateMonster({ ...monster, HP: healed });
-        console.log(
-          `[戰場${slotid}] ${monster.name} 恢復技能觸發，生命恢復至 ${healed}`
-        );
-      },
-    },
-  };
 
   useEffect(() => {
     if (queueMonsters.length === 0) return;
@@ -203,7 +262,7 @@ export default function useGameLogic() {
         {
           description: "本回合風平浪靜，什麼也沒發生。",
           applyEffect: () => {
-            addClientLog("[事件]本回合風平浪靜，什麼也沒發生。");
+            addClientLog("本回合風平浪靜，什麼也沒發生。");
             console.log("本回合風平浪靜，什麼也沒發生。");
           },
         },
@@ -216,7 +275,7 @@ export default function useGameLogic() {
         {
           description: "出現旅行商人，玩家可以花費金幣購買法術卡。",
           applyEffect: () => {
-            addClientLog("[事件]出現旅行商人，玩家可以花費金幣購買法術卡。");
+            addClientLog("出現旅行商人，玩家可以花費金幣購買法術卡。");
             console.log("出現旅行商人，玩家可以花費金幣購買法術卡。");
           },
         },
@@ -229,7 +288,7 @@ export default function useGameLogic() {
         {
           description: "精靈降臨，所有玩家獲得 +1 魔能石。",
           applyEffect: () => {
-            addClientLog("[事件]精靈降臨，所有玩家獲得 +1 魔能石。");
+            addClientLog("精靈降臨，所有玩家獲得 +1 魔能石。");
             console.log("精靈降臨，所有玩家獲得 +1 魔能石。");
             setPlayers((prev) =>
               prev.map((p) => ({
@@ -256,7 +315,7 @@ export default function useGameLogic() {
               ...prev,
               allAttackNeutral: true,
             }));
-            addClientLog("[事件]元素能量混亂，所有攻擊視為無屬性");
+            addClientLog("元素能量混亂，所有攻擊視為無屬性");
             console.log("⚡ 所有攻擊為無屬性攻擊");
           },
         },
@@ -268,7 +327,7 @@ export default function useGameLogic() {
               ...prev,
               disableElement: "火",
             }));
-            addClientLog("[事件]元素能量混亂，火屬性傷害無效");
+            addClientLog("元素能量混亂，火屬性傷害無效");
             console.log("⚡ 火屬性傷害無效");
           },
         },
@@ -280,7 +339,7 @@ export default function useGameLogic() {
               ...prev,
               disableElement: "水",
             }));
-            addClientLog("[事件]元素能量混亂，水屬性傷害無效");
+            addClientLog("元素能量混亂，水屬性傷害無效");
             console.log("⚡ 水屬性傷害無效");
           },
         },
@@ -292,7 +351,7 @@ export default function useGameLogic() {
               ...prev,
               disableElement: "木",
             }));
-            addClientLog("[事件]元素能量混亂，木屬性傷害無效");
+            addClientLog("元素能量混亂，木屬性傷害無效");
             console.log("⚡ 木屬性傷害無效");
           },
         },
@@ -305,7 +364,7 @@ export default function useGameLogic() {
         {
           description: "3隻哥布林衝入列隊，血量5，擊殺可得 2 金幣。",
           applyEffect: () => {
-            addClientLog("[事件]3隻哥布林衝入列隊，血量5，擊殺可得 2 金幣。");
+            addClientLog("3隻哥布林衝入列隊，血量5，擊殺可得 2 金幣。");
             console.log("🗡️ 生成哥布林 x3");
             setQueueMonsters((prev) => [...Goblin, ...prev]);
           },
@@ -323,7 +382,7 @@ export default function useGameLogic() {
               ...prev,
               doubleGold: true,
             }));
-            addClientLog("[事件]本回合擊殺怪物獲得雙倍金幣。");
+            addClientLog("本回合擊殺怪物獲得雙倍金幣。");
             console.log("💰 本回合擊殺金幣加倍！");
           },
         },
@@ -404,18 +463,30 @@ export default function useGameLogic() {
 
   const addMonsterToQueue = (monster: Monster) => {
     setQueueMonsters((prev) => [...prev, monster]);
+    setMonsterAmount((prev) => prev + 1);
+  };
+
+  const [forcedNextMonster, setForcedNextMonster] = useState<Monster[]>([]);
+
+  const addMonster = () => {
+    if (forcedNextMonster.length > 0) {
+      const monster = forcedNextMonster.shift();
+      if (monster) {
+        addMonsterToQueue(monster);
+      }
+    } else {
+      addRandomMonstersToQueue();
+    }
   };
 
   const addRandomMonstersToQueue = () => {
-    const monsterNameTable: Record<ElementType, string[]> = {
-      火: ["火史萊姆"],
-      水: ["水史萊姆"],
-      木: ["草史萊姆"],
-      無: ["骷髏", "鬼魂"],
-    };
     // 隨機生成數字的輔助函式
     const getRandomInt = (min: number, max: number): number => {
-      return Math.floor(Math.random() * (max - min + 1)) + min;
+      const flooredMin = Math.floor(min);
+      const ceiledMax = Math.ceil(max);
+      return (
+        Math.floor(Math.random() * (ceiledMax - flooredMin + 1)) + flooredMin
+      );
     };
     // 隨機選擇 屬性 的輔助函式
     const getRandomElementType = (): ElementType => {
@@ -432,45 +503,79 @@ export default function useGameLogic() {
       return weighted[idx];
     };
     //隨機選擇 怪物名稱 的輔助函式
+    let waightedLevels: number[] = [];
+    if (monsterAmount < 3 && monsterAmount >= 0) {
+      waightedLevels = [1];
+    } else if (monsterAmount < 6 && monsterAmount >= 3) {
+      waightedLevels = [1, 1, 1, 2, 2];
+    } else if (monsterAmount < 9 && monsterAmount >= 6) {
+      waightedLevels = [1, 2, 2, 2, 2];
+    } else if (monsterAmount < 12 && monsterAmount >= 9) {
+      waightedLevels = [2, 2, 2, 3, 3];
+    } else if (monsterAmount < 15 && monsterAmount >= 12) {
+      waightedLevels = [2, 3, 3, 3, 3];
+    } else if (monsterAmount >= 15) {
+      waightedLevels = [3];
+    }
+    let waightedLevels_index = Math.floor(
+      Math.random() * waightedLevels.length
+    );
+    const level = waightedLevels[waightedLevels_index];
+
     const getRandomMonsterName = (type: ElementType): string => {
-      const names = monsterNameTable[type];
+      const names = monsterNameTable[level][type];
       const idx = Math.floor(Math.random() * names.length);
       return names[idx];
     };
 
     const getRandomSpellCard = (): SpellCardType => {
-      const cards: SpellCardType[] = [
-        "冰凍法術",
-        "爆裂法術",
-        "冰凍法術",
-        "爆裂法術",
-        "毒藥法術",
-      ];
+      const cards: SpellCardType[] = ["冰凍法術", "爆裂法術", "毒藥法術"];
       const index = Math.floor(Math.random() * cards.length);
       return cards[index];
     };
-    const _maxHP = getRandomInt(5, 10);
+
+    const roundAvgAttack =
+      players.length === 0
+        ? 0
+        : players.reduce((sum, player) => {
+            const attackSum = Object.values(player.attack).reduce(
+              (a, b) => a + b,
+              0
+            );
+            return sum + attackSum;
+          }, 0) / 3;
+
+    const AvgHP =
+      (roundAvgAttack * 1.5 + monsterAmount * 0.8 + turn * 0.5 + level * 3) **
+      0.8;
+    console.log(
+      `${AvgHP} = ${roundAvgAttack} + ${monsterAmount * 0.5} + ${turn * 0.5}`
+    );
+    const _maxHP = getRandomInt(AvgHP - 2, AvgHP + 2);
     const _type = getRandomElementType();
     const _name = getRandomMonsterName(_type);
-
     let gold = 0;
     let manaStone = 0;
     let spellCards: SpellCardType | null = null;
 
     // 第一個戰利品（必定出現）
-    if (Math.random() < 0.6) {
+    if (Math.random() < 0.5) {
       gold += 1;
     } else {
       manaStone += 1;
     }
 
-    // 第二個戰利品（50% 機率出現）
-    if (Math.random() < 1) {
-      if (Math.random() < 0.1) {
+    if (level >= 2) {
+      if (Math.random() < 0.5) {
         gold += 1;
       } else {
-        spellCards = getRandomSpellCard();
+        manaStone += 1;
       }
+    }
+
+    // 法術戰利品（40% 機率出現）
+    if (Math.random() < 0.4) {
+      spellCards = getRandomSpellCard();
     }
 
     const newMonster: Monster = {
@@ -484,11 +589,9 @@ export default function useGameLogic() {
         spellCards,
       },
       imageUrl: null,
+      skill: null,
     };
-
-    setQueueMonsters((prevQueue) => {
-      return [...prevQueue, newMonster];
-    });
+    addMonsterToQueue(newMonster);
   };
   const [attackActions, setAttackActions] = useState<AttackAction[]>([]);
 
@@ -506,16 +609,49 @@ export default function useGameLogic() {
     });
   };
 
+  const handleSkillTrigger = (
+    monster: Monster,
+    slotId: "A" | "B" | "C",
+    trigger: "onHit" | "onTurnStart" | "onTurnEnd" | "onAppear",
+    battlefieldSlots: [BattleFieldSlot, BattleFieldSlot, BattleFieldSlot],
+    queueMonsters: Monster[],
+    updateSlots: (
+      slots: [BattleFieldSlot, BattleFieldSlot, BattleFieldSlot]
+    ) => void,
+    updateQueue: (queue: Monster[]) => void,
+    addLog: boolean = false
+  ) => {
+    if (!monster.skill) return;
+    const skill = skillTable[monster.skill];
+    if (!skill || skill.trigger !== trigger) return;
+
+    skill.applyEffect(
+      slotId,
+      battlefieldSlots,
+      queueMonsters,
+      updateSlots,
+      updateQueue
+    );
+    if (!addLog) {
+      return;
+    }
+    if (skill.name === "屬性輪轉") {
+      addSupervisorLog(
+        `[${slotId}] ${monster.name} 的屬性輪轉技能觸發，變為 ${monster.type}`
+      );
+    }
+  };
+
   const processAttackActions = () => {
     let updatedPlayers = structuredClone(players);
     let updatedSlots = structuredClone(battlefieldSlots);
+    let updatedQueue = structuredClone(queueMonsters);
     const idToIndex = { A: 0, B: 1, C: 2 };
-    console.log("處理攻擊行動", attackActions);
+
     const resolvePoisonDamage = () => {
       for (let i = 0; i < updatedSlots.length; i++) {
         const slot = updatedSlots[i];
         const target = slot?.monster;
-
         if (!target || !slot.poisonedBy || slot.lastIcedBy) continue;
 
         for (const poisonerId of slot.poisonedBy) {
@@ -524,59 +660,56 @@ export default function useGameLogic() {
 
           target.HP -= 1;
           addSupervisorLog(
-            `[戰場${slot.id}] ${poisoner.name} 的毒藥對 ${target.name} 造成 1 點傷害`
+            `[${slot.id}] 第${poisoner.id}組 的毒藥對 ${target.name} 造成 1 點傷害`
           );
 
-          if (target.skill?.some((sk) => sk.trigger === "onHit")) {
-            const skill = target.skill.find((s) => s.trigger === "onHit");
-            if (skill) {
-              skill.applyEffect(slot.id, target, (updatedMonster) => {
-                updatedSlots[i] = {
-                  ...slot,
-                  monster: updatedMonster,
-                };
-              });
-            }
-          }
+          handleSkillTrigger(
+            target,
+            slot.id,
+            "onHit",
+            updatedSlots,
+            updatedQueue,
+            (s) => (updatedSlots = s),
+            (q) => (updatedQueue = q),
+            true
+          );
 
-          if (target.HP > 0) {
-            updatedSlots[i] = { ...slot };
-            setBattleFieldSlots(structuredClone(updatedSlots));
+          if (target.HP <= 0) {
+            const gold = eventFlags.doubleGold
+              ? target.loot.gold * 2
+              : target.loot.gold;
+            poisoner.loot.gold += gold;
+            poisoner.loot.manaStone += target.loot.manaStone;
+            if (target.loot.spellCards) {
+              poisoner.loot.spellCards[target.loot.spellCards]++;
+            }
+
+            const rewards = [];
+            if (gold) rewards.push(`${gold} 金幣`);
+            if (target.loot.manaStone)
+              rewards.push(`${target.loot.manaStone} 魔能石`);
+            if (target.loot.spellCards)
+              rewards.push(`1 張 ${target.loot.spellCards} 卡`);
+
+            addClientLog(
+              `[${slot.id}] 第${poisoner.id}組 殺死了 ${target.name}，${
+                rewards.length
+                  ? `獲得 ${rewards.join("、")}`
+                  : "無獲得任何戰利品"
+              }`
+            );
+
+            updatedSlots[i] = {
+              ...slot,
+              monster: updatedQueue.shift() ?? null,
+              poisonedBy: null,
+              lastIcedBy: null,
+            };
+
             break;
           }
 
-          // 獎勵與訊息
-          const gold = eventFlags.doubleGold
-            ? target.loot.gold * 2
-            : target.loot.gold;
-          poisoner.loot.gold += gold;
-          poisoner.loot.manaStone += target.loot.manaStone;
-          if (target.loot.spellCards) {
-            poisoner.loot.spellCards[target.loot.spellCards]++;
-          }
-
-          const rewards = [];
-          if (gold) rewards.push(`${gold} 金幣`);
-          if (target.loot.manaStone)
-            rewards.push(`${target.loot.manaStone} 魔能石`);
-          if (target.loot.spellCards)
-            rewards.push(`1 張 ${target.loot.spellCards} 卡`);
-          const rewardText = rewards.length
-            ? `獲得 ${rewards.join("、")}`
-            : "無獲得任何戰利品";
-
-          addClientLog(
-            `[戰場${slot.id}] ${poisoner.name} 殺死了 ${target.name}，${rewardText}`
-          );
-
-          updatedSlots[i] = {
-            ...slot,
-            monster: null,
-            poisonedBy: null,
-            lastIcedBy: null,
-          };
-          setPlayers(structuredClone(updatedPlayers));
-          setBattleFieldSlots(structuredClone(updatedSlots));
+          updatedSlots[i] = { ...slot };
           break;
         }
       }
@@ -593,48 +726,31 @@ export default function useGameLogic() {
       );
       if (!slot || !target || !currentPlayer) continue;
 
-      addSupervisorLog(`處理第 ${turn} 回合 ${currentPlayer.name} 的攻擊`);
-
-      // 冰凍檢查
+      // 冰凍判斷
       if (slot.lastIcedBy === currentPlayer.id) {
-        addSupervisorLog(
-          `[戰場${slot.id}] 來自 ${currentPlayer.name} 的冰凍已解除`
-        );
+        addSupervisorLog(`[${slot.id}] 第${currentPlayer.id}組 的冰凍解除`);
         slot.lastIcedBy = null;
       } else if (slot.lastIcedBy) {
         const freezer = updatedPlayers.find((p) => p.id === slot.lastIcedBy);
         addSupervisorLog(
-          `[戰場${slot.id}] ${target.name} 因 ${freezer?.name} 的冰凍，${currentPlayer.name} 攻擊失效`
+          `[${slot.id}] 因 ${freezer?.name} 的冰凍，第${currentPlayer.id}組 攻擊失效`
         );
-        setPlayers(structuredClone(updatedPlayers));
-        setBattleFieldSlots(structuredClone(updatedSlots));
         continue;
       }
 
-      // 攻擊處理
       if (action.cardType === "魔法棒") {
         const element = action.element!;
-        const counter: Record<ElementType, ElementType> = {
-          火: "木",
-          木: "水",
-          水: "火",
-          無: "無",
-        };
-        const weak: Record<ElementType, ElementType> = {
-          火: "水",
-          水: "木",
-          木: "火",
-          無: "無",
-        };
+        const counter = { 火: "木", 木: "水", 水: "火", 無: "無" };
+        const weak = { 火: "水", 水: "木", 木: "火", 無: "無" };
+
         if (element === eventFlags.disableElement) {
           addSupervisorLog(
-            `[戰場${slot.id}]${currentPlayer.name} 的 ${element} 屬性因事件效果失效，攻擊無效`
+            `[${slot.id}] 第${currentPlayer.id}組 的 ${element} 屬性因事件效果失效，攻擊無效`
           );
           continue;
         }
 
         let dmg = currentPlayer.attack[element];
-        // 如果事件效果影響攻擊屬性
         if (!eventFlags.allAttackNeutral) {
           if (target.type === counter[element]) dmg *= 2;
           if (target.type === weak[element]) dmg = 0;
@@ -642,58 +758,60 @@ export default function useGameLogic() {
 
         target.HP -= dmg;
         addSupervisorLog(
-          `[戰場${slot.id}]${currentPlayer.name} 使用魔法棒(${element}) 對 ${target.name} 造成 ${dmg} 點傷害`
+          `[${slot.id}] 第${currentPlayer.id}組 使用魔法棒(${element}) 對 ${target.name} 造成 ${dmg} 點傷害`
         );
-        if (target.skill?.some((sk) => sk.trigger === "onHit")) {
-          const skill = target.skill.find((s) => s.trigger === "onHit");
-          if (skill) {
-            skill.applyEffect(slot.id, target, (updatedMonster) => {
-              updatedSlots[battlefieldIndex] = {
-                ...slot,
-                monster: updatedMonster,
-              };
-            });
-          }
-        }
+
+        handleSkillTrigger(
+          target,
+          slot.id,
+          "onHit",
+          updatedSlots,
+          updatedQueue,
+          (s) => (updatedSlots = s),
+          (q) => (updatedQueue = q),
+          true
+        );
       } else if (action.cardType === "冰凍法術") {
         slot.lastIcedBy = currentPlayer.id;
         target.HP -= 2;
         addSupervisorLog(
-          `[戰場${slot.id}] ${currentPlayer.name} 使用 冰凍法術 對 ${target.name} 造成 2 點傷害`
+          `[${slot.id}] 第${currentPlayer.id}組 使用 冰凍法術 造成 2 點傷害`
         );
-        if (target.skill?.some((sk) => sk.trigger === "onHit")) {
-          const skill = target.skill.find((s) => s.trigger === "onHit");
-          if (skill) {
-            skill.applyEffect(slot.id, target, (updatedMonster) => {
-              updatedSlots[battlefieldIndex] = {
-                ...slot,
-                monster: updatedMonster,
-              };
-            });
-          }
-        }
-      } else if (action.cardType === "爆裂法術") {
-        addSupervisorLog(`[所有戰場] ${currentPlayer.name} 使用 爆裂法術`);
-        updatedSlots.forEach((s, idx) => {
-          if (!s.monster) return;
-          s.monster.HP -= 2;
-          addSupervisorLog(
-            `[戰場${s.id}] ${currentPlayer.name} 對 ${s.monster.name} 造成 2 點傷害`
-          );
-          if (s.monster.skill?.some((sk) => sk.trigger === "onHit")) {
-            const skill = s.monster.skill.find((sk) => sk.trigger === "onHit");
-            if (skill) {
-              skill.applyEffect(s.id, s.monster, (updatedMonster) => {
-                updatedSlots[idx] = {
-                  ...s,
-                  monster: updatedMonster,
-                };
-              });
-            }
-          }
 
-          if (s.monster.HP <= 0) {
-            const m = s.monster;
+        handleSkillTrigger(
+          target,
+          slot.id,
+          "onHit",
+          updatedSlots,
+          updatedQueue,
+          (s) => (updatedSlots = s),
+          (q) => (updatedQueue = q),
+          true
+        );
+      } else if (action.cardType === "爆裂法術") {
+        addSupervisorLog(`[ALL] 第${currentPlayer.id}組 使用 爆裂法術`);
+        for (let i = 0; i < updatedSlots.length; i++) {
+          const s = updatedSlots[i];
+          const m = s.monster;
+          if (!m) continue;
+
+          m.HP -= 2;
+          addSupervisorLog(
+            `[${s.id}] 第${currentPlayer.id}組 對 ${m.name} 造成 2 點傷害`
+          );
+
+          handleSkillTrigger(
+            m,
+            s.id,
+            "onHit",
+            updatedSlots,
+            updatedQueue,
+            (slots) => (updatedSlots = slots),
+            (queue) => (updatedQueue = queue),
+            true
+          );
+
+          if (m.HP <= 0) {
             const gold = eventFlags.doubleGold ? m.loot.gold * 2 : m.loot.gold;
             currentPlayer.loot.gold += gold;
             currentPlayer.loot.manaStone += m.loot.manaStone;
@@ -704,32 +822,34 @@ export default function useGameLogic() {
             if (gold) rewards.push(`${gold} 金幣`);
             if (m.loot.manaStone) rewards.push(`${m.loot.manaStone} 魔能石`);
             if (m.loot.spellCards) rewards.push(`1 張 ${m.loot.spellCards} 卡`);
-            const rewardText = rewards.length
-              ? `獲得 ${rewards.join("、")}`
-              : "無獲得任何戰利品";
 
             addClientLog(
-              `[戰場${s.id}] ${currentPlayer.name} 殺死了 ${m.name}，${rewardText}`
+              `[${s.id}] 第${currentPlayer.id}組 殺死了 ${m.name}，${
+                rewards.length
+                  ? `獲得 ${rewards.join("、")}`
+                  : "無獲得任何戰利品"
+              }`
             );
-            updatedSlots[idx] = {
+
+            updatedSlots[i] = {
               ...s,
-              monster: null,
+              monster: updatedQueue.shift() ?? null,
               poisonedBy: null,
               lastIcedBy: null,
             };
-            setPlayers(structuredClone(updatedPlayers));
-            setBattleFieldSlots(structuredClone(updatedSlots));
           }
-        });
+        }
       } else if (action.cardType === "毒藥法術") {
         if (!slot.poisonedBy) slot.poisonedBy = [];
-        slot.poisonedBy.push(currentPlayer.id);
+        if (!slot.poisonedBy.includes(currentPlayer.id)) {
+          slot.poisonedBy.push(currentPlayer.id);
+        }
         addSupervisorLog(
-          `[戰場${slot.id}] ${currentPlayer.name} 對 ${target.name} 施加 毒藥法術`
+          `[${slot.id}] 第${currentPlayer.id}組 對 ${target.name} 施加 毒藥法術`
         );
       }
 
-      // 單體死亡結算
+      // 死亡判斷
       if (target.HP <= 0) {
         const gold = eventFlags.doubleGold
           ? target.loot.gold * 2
@@ -745,73 +865,84 @@ export default function useGameLogic() {
           rewards.push(`${target.loot.manaStone} 魔能石`);
         if (target.loot.spellCards)
           rewards.push(`1 張 ${target.loot.spellCards} 卡`);
-        const rewardText = rewards.length
-          ? `獲得 ${rewards.join("、")}`
-          : "無獲得任何戰利品";
 
         addClientLog(
-          `[戰場${slot.id}] ${currentPlayer.name} 殺死了 ${target.name}，${rewardText}`
+          `[${slot.id}] 第${currentPlayer.id}組 殺死了 ${target.name}，${
+            rewards.length ? `獲得 ${rewards.join("、")}` : "無獲得任何戰利品"
+          }`
         );
+
         updatedSlots[battlefieldIndex] = {
           ...slot,
-          monster: null,
+          monster: updatedQueue.shift() ?? null,
           poisonedBy: null,
           lastIcedBy: null,
         };
       }
-
-      setPlayers(structuredClone(updatedPlayers));
-      setBattleFieldSlots(structuredClone(updatedSlots));
     }
 
+    // ✅ 更新 state
+    setPlayers(structuredClone(updatedPlayers));
+    setBattleFieldSlots(structuredClone(updatedSlots));
+    setQueueMonsters(structuredClone(updatedQueue));
     setAttackActions([]);
   };
 
-  //FIXME:邏輯上目前與攻擊不一致
   const previewBattlefieldAfterActions = (): [
     BattleFieldSlot,
     BattleFieldSlot,
     BattleFieldSlot
   ] => {
-    const clonedPlayers = structuredClone(players);
-    const clonedSlots: [BattleFieldSlot, BattleFieldSlot, BattleFieldSlot] =
-      structuredClone(battlefieldSlots);
-    const clonedQueue = structuredClone(queueMonsters);
     const idToIndex = { A: 0, B: 1, C: 2 };
+    let clonedPlayers = structuredClone(players);
+    let clonedSlots = structuredClone(battlefieldSlots) as [
+      BattleFieldSlot,
+      BattleFieldSlot,
+      BattleFieldSlot
+    ];
+    let clonedQueue = structuredClone(queueMonsters);
 
-    // ===== 毒藥結算邏輯 =====
-    for (let i = 0; i < clonedSlots.length; i++) {
-      const slot = clonedSlots[i];
-      const target = slot.monster;
-      if (!target || !slot.poisonedBy || slot.lastIcedBy) continue;
+    const resolvePoisonDamage = () => {
+      for (let i = 0; i < clonedSlots.length; i++) {
+        const slot = clonedSlots[i];
+        const target = slot?.monster;
+        if (!target || !slot.poisonedBy || slot.lastIcedBy) continue;
 
-      for (const poisonerId of slot.poisonedBy) {
-        if (target.HP > 0) target.HP -= 1;
+        for (const poisonerId of slot.poisonedBy) {
+          const poisoner = clonedPlayers.find((p) => p.id === poisonerId);
+          if (!poisoner) continue;
 
-        // 模擬技能觸發
-        if (target.skill?.some((sk) => sk.trigger === "onHit")) {
-          const skill = target.skill.find((s) => s.trigger === "onHit");
-          if (skill) {
-            skill.applyEffect(slot.id, target, (updated) => {
-              clonedSlots[i] = { ...slot, monster: updated };
-            });
+          target.HP -= 1;
+
+          handleSkillTrigger(
+            target,
+            slot.id,
+            "onHit",
+            clonedSlots,
+            clonedQueue,
+            (s) => (clonedSlots = s),
+            (q) => (clonedQueue = q)
+          );
+
+          if (target.HP <= 0) {
+            clonedSlots[i] = {
+              id: slot.id,
+              monster: clonedQueue.shift() ?? null,
+              poisonedBy: null,
+              lastIcedBy: null,
+            };
+            break;
           }
-        }
 
-        if (target.HP <= 0) {
-          clonedSlots[i] = {
-            id: slot.id,
-            monster: clonedQueue.shift() ?? null,
-            poisonedBy: null,
-            lastIcedBy: null,
-          };
-          break;
+          clonedSlots[i] = { ...slot };
+          break; // 與正式邏輯一致：每人一次攻擊前只觸發一次毒藥
         }
       }
-    }
+    };
 
-    // ===== 攻擊階段邏輯 =====
     for (const action of attackActions) {
+      resolvePoisonDamage();
+
       const index = idToIndex[action.battlefieldId];
       const slot = clonedSlots[index];
       const player = clonedPlayers.find((p) => p.id === action.player.id);
@@ -819,11 +950,13 @@ export default function useGameLogic() {
 
       const monster = slot.monster;
 
-      // 冰凍邏輯
-      if (slot.lastIcedBy && slot.lastIcedBy !== player.id) continue;
-      if (slot.lastIcedBy === player.id) slot.lastIcedBy = null;
+      // 冰凍判斷
+      if (slot.lastIcedBy === player.id) {
+        slot.lastIcedBy = null;
+      } else if (slot.lastIcedBy) {
+        continue;
+      }
 
-      // 攻擊處理
       if (action.cardType === "魔法棒") {
         const element = action.element!;
         const base = player.attack[element];
@@ -848,26 +981,28 @@ export default function useGameLogic() {
 
         monster.HP -= dmg;
 
-        if (monster.skill?.some((sk) => sk.trigger === "onHit")) {
-          const skill = monster.skill.find((s) => s.trigger === "onHit");
-          if (skill) {
-            skill.applyEffect(slot.id, monster, (updated) => {
-              clonedSlots[index] = { ...slot, monster: updated };
-            });
-          }
-        }
+        handleSkillTrigger(
+          monster,
+          slot.id,
+          "onHit",
+          clonedSlots,
+          clonedQueue,
+          (s) => (clonedSlots = s),
+          (q) => (clonedQueue = q)
+        );
       } else if (action.cardType === "冰凍法術") {
         slot.lastIcedBy = player.id;
         monster.HP -= 2;
 
-        if (monster.skill?.some((sk) => sk.trigger === "onHit")) {
-          const skill = monster.skill.find((s) => s.trigger === "onHit");
-          if (skill) {
-            skill.applyEffect(slot.id, monster, (updated) => {
-              clonedSlots[index] = { ...slot, monster: updated };
-            });
-          }
-        }
+        handleSkillTrigger(
+          monster,
+          slot.id,
+          "onHit",
+          clonedSlots,
+          clonedQueue,
+          (s) => (clonedSlots = s),
+          (q) => (clonedQueue = q)
+        );
       } else if (action.cardType === "爆裂法術") {
         for (let i = 0; i < clonedSlots.length; i++) {
           const s = clonedSlots[i];
@@ -875,14 +1010,15 @@ export default function useGameLogic() {
 
           s.monster.HP -= 2;
 
-          if (s.monster.skill?.some((sk) => sk.trigger === "onHit")) {
-            const skill = s.monster.skill.find((s) => s.trigger === "onHit");
-            if (skill) {
-              skill.applyEffect(s.id, s.monster, (updated) => {
-                clonedSlots[i] = { ...s, monster: updated };
-              });
-            }
-          }
+          handleSkillTrigger(
+            s.monster,
+            s.id,
+            "onHit",
+            clonedSlots,
+            clonedQueue,
+            (s2) => (clonedSlots = s2),
+            (q2) => (clonedQueue = q2)
+          );
 
           if (s.monster.HP <= 0) {
             clonedSlots[i] = {
@@ -895,10 +1031,12 @@ export default function useGameLogic() {
         }
       } else if (action.cardType === "毒藥法術") {
         if (!slot.poisonedBy) slot.poisonedBy = [];
-        slot.poisonedBy.push(player.id);
+        if (!slot.poisonedBy.includes(player.id)) {
+          slot.poisonedBy.push(player.id);
+        }
       }
 
-      // 死亡處理 + 替補
+      // 死亡判斷（非爆裂後才需要）
       if (monster.HP <= 0) {
         clonedSlots[index] = {
           id: slot.id,
@@ -911,6 +1049,10 @@ export default function useGameLogic() {
 
     return clonedSlots;
   };
+
+  const previewSlots = useMemo(() => {
+    return previewBattlefieldAfterActions();
+  }, [attackActions, battlefieldSlots, queueMonsters, players]);
 
   const nextForcedEvent = useRef<{
     eventName?: string;
@@ -1024,36 +1166,63 @@ export default function useGameLogic() {
         setPhase("結算");
         break;
       case "結算":
-        const updatedSlots = structuredClone(battlefieldSlots);
-        updatedSlots.forEach((slot) => {
-          const monster = slot.monster;
-          if (!monster) return;
-          const skill = monster.skill?.find((s) => s.trigger === "onTurnEnd");
-          if (skill) {
-            skill.applyEffect(slot.id, monster, (updatedMonster) => {
-              slot.monster = updatedMonster;
-            });
-          }
-        });
-        setBattleFieldSlots(updatedSlots);
-        setTurn((prev) => prev + 1);
-        rotatePlayers();
-        setPhase("事件");
+        {
+          let updatedSlots = structuredClone(battlefieldSlots);
+          let updatedQueue = structuredClone(queueMonsters);
+
+          updatedSlots.forEach((slot, index) => {
+            const monster = slot.monster;
+            if (!monster || !monster.skill) return;
+
+            const skill = skillTable[monster.skill];
+            if (!skill || skill.trigger !== "onTurnEnd") return;
+
+            skill.applyEffect(
+              slot.id,
+              updatedSlots,
+              updatedQueue,
+              (newSlots) => {
+                updatedSlots = newSlots;
+              },
+              (newQueue) => {
+                updatedQueue = newQueue;
+              }
+            );
+
+            if (skill.name === "恢復") {
+              addClientLog(
+                `[${slot.id}] ${monster.name} 的恢復技能觸發，恢復生命`
+              );
+            }
+          });
+
+          setBattleFieldSlots(updatedSlots);
+          setQueueMonsters(updatedQueue);
+          setTurn((prev) => prev + 1);
+          rotatePlayers();
+          setPhase("事件");
+        }
         break;
     }
   };
+
   return {
     gameState,
+
     turn,
     phase,
     nextPhase,
+
     players,
     setPlayers,
     generatePlayers,
+
     battlefieldSlots,
     queueMonsters,
-    addMonsterToQueue,
-    addRandomMonstersToQueue,
+    forcedNextMonster,
+    setForcedNextMonster,
+    addMonster,
+
     event,
     eventTable,
     nextForcedEvent,
@@ -1064,7 +1233,7 @@ export default function useGameLogic() {
     attackActions,
     addAttackAction,
     cancelLastAttackAction,
-    previewBattlefieldAfterActions,
+    previewSlots,
   };
 }
 

@@ -1,8 +1,6 @@
 .main-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
   background-color: #242424;
 }
 
@@ -18,19 +16,74 @@ h2 {
 }
 
 .controls-box {
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  padding: 0px, 50px;
 }
 
-.phase-control,
+.controls-box > div {
+  width: 100%; /* 避免撐爆格子 */
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+.supervisor-log > div {
+  height: 250px; /* ✅ 固定高度，可依需要調整 */
+  overflow-y: auto; /* ✅ 垂直滾動條 */
+  background-color: #1e1e1e; /* 可選：加深背景 */
+  border: 1px solid #555;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 內部 ul 不要有預設 margin/padding */
+.supervisor-log > div ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* 每條日誌項目樣式（可選強調時間） */
+.supervisor-log > div li {
+  margin-bottom: 6px;
+  word-break: break-word; /* 長訊息換行 */
+}
+
+.timestamp {
+  color: #aaa;
+  margin-right: 4px;
+}
+
+.message {
+  color: #fff;
+}
+
+#addAttack {
+  height: 50px;
+}
+
+#cancelAttack ul {
+  height: 120px;
+}
+
+/* 與上方功能一樣 */
+/* .phase-control,
 .player-controls,
-.monster-controls {
+.monster-controls,
+.preview-control,
+.attack-control {
   display: flex;
   flex-direction: column;
   align-items: center;
   margin: 0, 10px;
   padding: 20px;
-}
+} */
 
 .player-slot {
   border: #cdcdcd 1px solid;
@@ -42,6 +95,7 @@ h2 {
   align-items: center;
   margin-left: 12px;
   gap: 10px;
+  height: 60px;
 }
 
 /* player-attributes: 三列區塊直排 OK */
@@ -49,6 +103,7 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  margin-bottom: 10px;
 }
 
 /* 每一列內的 form-pair 區塊：設定為 grid 六欄 */
@@ -77,36 +132,18 @@ h2 {
   border-radius: 4px;
 }
 
-#battlefield,
-#preview-slot {
-  display: grid;
-  grid-auto-flow: column;
-  grid-template-columns: repeat(3, 1fr);
-  align-items: center;
-  justify-content: center;
-}
-
-#queue {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 120px;
-  max-width: 360px;
-  overflow-x: auto; /* 允許橫向捲動 */
-}
-
-.slot {
-  width: 120px;
-  display: flex;
-  flex-direction: column;
-  padding: 10px;
-}
-
-.slot > div,
-h3 {
-  padding: 10px 0px;
+.battlefieldslots {
   display: flex;
   flex-direction: row;
-  justify-content: space-around;
+  align-items: center;
+}
+
+.queueslots {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  max-width: 560px;
+  overflow-x: auto; /* 允許橫向捲動 */
 }
 
 input:focus {

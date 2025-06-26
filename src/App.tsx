@@ -5,22 +5,17 @@ import type {
   PlayerElementType,
   AttackCardType,
   EventEffect,
+  Monster,
 } from "./game/useGameLogic";
 import GameStateSender from "./hook/GameStateSender";
+import MonsterCard from "./component/MonsterCard";
+import MonsterInputModal from "./component/Monstermodal";
 import "./App.css";
 
 function App() {
   const game = useGameLogic();
-  const {
-    gameState,
-    nextPhase,
-    generatePlayers,
-    addRandomMonstersToQueue,
-    addAttackAction,
-    triggerEvent,
-    setNextEvent,
-    previewBattlefieldAfterActions,
-  } = game;
+  const { gameState } = game;
+
   const [playerCount, setPlayerCount] = useState(6);
   const [editPlayerIds, setEditPlayerIds] = useState<number[]>([]);
 
@@ -33,6 +28,8 @@ function App() {
 
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const [AttackActionIsFull, setAttackActionIsFull] = useState(false);
+
+  const [isInputModalOpen, setInputModalOpen] = useState(false);
 
   const updatePlayer = (id: number, updater: (p: Player) => void) => {
     game.setPlayers((prev) => {
@@ -58,12 +55,29 @@ function App() {
   };
 
   return (
-    <div className="main-container">
-      <h1>控制面板</h1>
-      <div className="connect-status">
-        <GameStateSender gamestate={game.gameState} />
+    <div className="main-container ">
+      <div className="controls-box">
+        <div>
+          <div className="connect-status ">
+            <GameStateSender gamestate={game.gameState} />
+          </div>
+        </div>
       </div>
       <div className="controls-box">
+        <div className="supervisor-log">
+          <h2>遊戲日誌</h2>
+          <div>
+            <ul>
+              {game.supervisorLog.map((log, index) => (
+                <li key={index}>
+                  <span className="timestamp">{`${log.round} ${log.phase}：`}</span>
+
+                  <span className="message">{log.message}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
         <div className="phase-control">
           <h2>
             {game.phase === "準備開始遊戲"
@@ -72,14 +86,16 @@ function App() {
           </h2>
           <button
             onClick={() => {
-              nextPhase();
+              game.nextPhase();
               if (game.phase === "行動") {
                 setCurrentPlayerIndex(0);
                 setAttackActionIsFull(false);
               }
             }}
             disabled={
-              game.players.length === 0 ||
+              (game.phase === "準備開始遊戲" &&
+                (game.queueMonsters.length === 0 ||
+                  game.players.length <= 1)) ||
               (game.phase === "行動" &&
                 game.attackActions.length !== playerCount)
             }
@@ -92,61 +108,63 @@ function App() {
           </button>
         </div>
         <div className="event-control">
+          <h2>當前事件</h2>
+          <p>{game.event.name}</p>
+          <p>{game.event.effects[0].description}</p>
+
           <div>
-            <h2>當前事件</h2>
-            <h3>{game.event.name}</h3>
-            <p>{game.event.effects[0].description}</p>
-          </div>
+            <p>
+              下回合事件:
+              <select
+                value={selectedEvent}
+                onChange={(e) => {
+                  setSelectedEvent(e.target.value);
+                  game.setNextEvent(e.target.value);
+                }}
+              >
+                <option value="">隨機</option>
+                {game.eventTable.map((event) => (
+                  <option key={event.name} value={event.name}>
+                    {event.name}
+                  </option>
+                ))}
+              </select>
+              {selectedEvent &&
+                (() => {
+                  const currentEvent = game.eventTable.find(
+                    (event) => event.name === selectedEvent
+                  );
+                  const effects = currentEvent?.effects as EventEffect[];
 
-          <p>下回合事件:</p>
-          <select
-            value={selectedEvent}
-            onChange={(e) => {
-              setSelectedEvent(e.target.value);
-              game.setNextEvent(e.target.value);
-            }}
-          >
-            <option value="">隨機</option>
-            {game.eventTable.map((event) => (
-              <option key={event.name} value={event.name}>
-                {event.name}
-              </option>
-            ))}
-          </select>
-          {selectedEvent &&
-            (() => {
-              const currentEvent = game.eventTable.find(
-                (event) => event.name === selectedEvent
-              );
-              const effects = currentEvent?.effects as EventEffect[];
-
-              return (
-                <select
-                  value={selectedDescription}
-                  onChange={(e) => {
-                    setSelectedDescription(e.target.value);
-                    game.setNextEvent(selectedEvent, e.target.value);
-                  }}
-                >
-                  {effects.length > 1 ? (
-                    <>
-                      <option value="">隨機</option>
-                      {effects.map((eff, index) => (
-                        <option key={index} value={eff.description}>
-                          {eff.description}
+                  return (
+                    <select
+                      value={selectedDescription}
+                      onChange={(e) => {
+                        setSelectedDescription(e.target.value);
+                        game.setNextEvent(selectedEvent, e.target.value);
+                      }}
+                    >
+                      {effects.length > 1 ? (
+                        <>
+                          <option value="">隨機</option>
+                          {effects.map((eff, index) => (
+                            <option key={index} value={eff.description}>
+                              {eff.description}
+                            </option>
+                          ))}
+                        </>
+                      ) : effects.length === 1 ? (
+                        <option value={effects[0].description}>
+                          {effects[0].description}
                         </option>
-                      ))}
-                    </>
-                  ) : effects.length === 1 ? (
-                    <option value={effects[0].description}>
-                      {effects[0].description}
-                    </option>
-                  ) : (
-                    <option disabled>無描述可選</option>
-                  )}
-                </select>
-              );
-            })()}
+                      ) : (
+                        <option disabled>無描述可選</option>
+                      )}
+                    </select>
+                  );
+                })()}{" "}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -160,7 +178,7 @@ function App() {
                 value={playerCount}
                 onChange={(e) => setPlayerCount(Number(e.target.value))}
               />
-              <button onClick={() => generatePlayers(playerCount)}>
+              <button onClick={() => game.generatePlayers(playerCount)}>
                 生成玩家
               </button>
             </div>
@@ -334,127 +352,59 @@ function App() {
         </div>
         <div className="monster-controls">
           <h2>怪物列表</h2>
-          <button onClick={addRandomMonstersToQueue}>加入隨機怪物到列隊</button>
-          <div id="battlefield">
+          <button onClick={() => setInputModalOpen(true)}>建立自訂怪物</button>
+          <button
+            onClick={game.addMonster}
+            disabled={game.players.length === 0}
+          >
+            加入怪物到列隊
+          </button>
+          {game.players.length === 0 && <p>請先加入玩家</p>}
+          <MonsterInputModal
+            isOpen={isInputModalOpen}
+            onClose={() => setInputModalOpen(false)}
+            addMonster={(monster) =>
+              game.setForcedNextMonster((prev) => [...prev, monster])
+            }
+          />
+          <div id="mosterqueuemodal"></div>
+          <div className="battlefieldslots">
             {game.battlefieldSlots.map((slot) => {
               const id = slot.id;
               const monster = slot.monster;
 
               return (
-                <div className="slot" key={id}>
-                  <h3>戰場{id}</h3>
-                  {monster ? (
-                    <>
-                      <div className="monster-info-top">
-                        <span
-                          id="monster-type"
-                          className={
-                            monster.type === "火"
-                              ? "fire"
-                              : monster.type === "水"
-                              ? "water"
-                              : monster.type === "木"
-                              ? "wood"
-                              : "none"
-                          }
-                        >
-                          {monster.type}
-                        </span>
-                        <span>
-                          {monster.HP}/{monster.maxHP}❤️
-                        </span>
-                      </div>
-                      <div>
-                        <span
-                          id="monster-name"
-                          className={
-                            monster.type === "火"
-                              ? "fire"
-                              : monster.type === "水"
-                              ? "water"
-                              : monster.type === "木"
-                              ? "wood"
-                              : "none"
-                          }
-                        >
-                          {monster.name}
-                        </span>
-                      </div>
-                      <div>
-                        <span>
-                          {monster.loot.gold > 0 && `🪙x${monster.loot.gold} `}
-                          {monster.loot.manaStone > 0 &&
-                            `🪨x${monster.loot.manaStone} `}
-                          {monster.loot.spellCards &&
-                            `${monster.loot.spellCards}`}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <div>空</div>
-                  )}
-                </div>
+                <Fragment key={id}>
+                  <MonsterCard monster={monster} title={`戰場${id}`} />
+                </Fragment>
               );
             })}
           </div>
-          <h2>怪物列隊</h2>
-          <div id="queue">
-            {game.queueMonsters.map((monster) => {
-              return (
-                <div className="slot">
-                  {monster ? (
-                    <>
-                      <div className="monster-info-top">
-                        <span
-                          id="monster-type"
-                          className={
-                            monster.type === "火"
-                              ? "fire"
-                              : monster.type === "水"
-                              ? "water"
-                              : monster.type === "木"
-                              ? "wood"
-                              : "none"
-                          }
-                        >
-                          {monster.type}
-                        </span>
-                        <span>
-                          {monster.HP}/{monster.maxHP}❤️
-                        </span>
-                      </div>
-                      <div>
-                        <span
-                          id="monster-name"
-                          className={
-                            monster.type === "火"
-                              ? "fire"
-                              : monster.type === "水"
-                              ? "water"
-                              : monster.type === "木"
-                              ? "wood"
-                              : "none"
-                          }
-                        >
-                          {monster.name}
-                        </span>
-                      </div>
-                      <div>
-                        <span>
-                          {monster.loot.gold > 0 && `🪙x${monster.loot.gold} `}
-                          {monster.loot.manaStone > 0 &&
-                            `🪨x${monster.loot.manaStone} `}
-                          {monster.loot.spellCards &&
-                            `${monster.loot.spellCards}`}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <div>空</div>
-                  )}
-                </div>
-              );
-            })}
+          <h3>怪物列隊</h3>
+          <div className="queueslots">
+            {game.queueMonsters.map((monster, idx) => (
+              <Fragment key={idx}>
+                <MonsterCard monster={monster} />
+              </Fragment>
+            ))}
+          </div>
+          <h3>接著被加入至戰場的怪物</h3>
+          <p>當這裡是空的時候按下加入怪物按鈕會隨機加入怪物</p>
+          <div className="forcedslots">
+            {game.forcedNextMonster.map((monster, idx) => (
+              <Fragment key={idx}>
+                <button
+                  onClick={() =>
+                    game.setForcedNextMonster(
+                      game.forcedNextMonster.filter((_, i) => i !== idx)
+                    )
+                  }
+                >
+                  remove
+                </button>
+                <MonsterCard monster={monster} />
+              </Fragment>
+            ))}
           </div>
         </div>
       </div>
@@ -463,174 +413,157 @@ function App() {
         <div className="controls-box">
           <div className="attack-control">
             <h2>攻擊設定</h2>
+            <div id="addAttack">
+              <div>目前玩家：{game.players[currentPlayerIndex]?.name}</div>
 
-            <div>目前玩家：{game.players[currentPlayerIndex]?.name}</div>
-
-            <select
-              value={selectedCardType}
-              onChange={(e) => setSelectedCardType(e.target.value)}
-            >
-              {getAvailableCardTypes(game.players[currentPlayerIndex]).map(
-                (card) => (
-                  <option key={card} value={card}>
-                    {card}
-                  </option>
-                )
-              )}
-            </select>
-
-            {selectedCardType === "魔法棒" && (
               <select
-                value={selectedElement}
-                onChange={(e) => setSelectedElement(e.target.value)}
+                value={selectedCardType}
+                onChange={(e) => setSelectedCardType(e.target.value)}
               >
-                <option value="火" className="fire">
-                  火
-                </option>
-                <option value="水" className="water">
-                  水
-                </option>
-                <option value="木" className="wood">
-                  木
-                </option>
+                {getAvailableCardTypes(game.players[currentPlayerIndex]).map(
+                  (card) => (
+                    <option key={card} value={card}>
+                      {card}
+                    </option>
+                  )
+                )}
               </select>
-            )}
 
-            <select
-              value={selectedTarget}
-              onChange={(e) => setSelectedTarget(e.target.value)}
-            >
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-            </select>
+              {selectedCardType === "魔法棒" && (
+                <select
+                  value={selectedElement}
+                  onChange={(e) => setSelectedElement(e.target.value)}
+                >
+                  <option value="火" className="fire">
+                    火
+                  </option>
+                  <option value="水" className="water">
+                    水
+                  </option>
+                  <option value="木" className="wood">
+                    木
+                  </option>
+                </select>
+              )}
 
-            <button
-              disabled={AttackActionIsFull}
-              onClick={() => {
-                const player = game.players[currentPlayerIndex];
-                if (!player) return;
+              <select
+                value={selectedTarget}
+                onChange={(e) => setSelectedTarget(e.target.value)}
+              >
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+              </select>
 
-                addAttackAction({
-                  player,
-                  battlefieldId: selectedTarget as "A" | "B" | "C",
-                  cardType: selectedCardType as AttackCardType,
-                  element:
-                    selectedCardType === "魔法棒"
-                      ? (selectedElement as PlayerElementType)
-                      : undefined,
-                });
-                setCurrentPlayerIndex((prev) => {
-                  const nextIndex = prev + 1;
-                  if (nextIndex >= game.players.length) {
-                    setAttackActionIsFull(true);
-                    return prev;
-                  }
-                  return nextIndex;
-                });
-              }}
-            >
-              提交攻擊行動
-            </button>
+              <button
+                disabled={AttackActionIsFull}
+                onClick={() => {
+                  const player = game.players[currentPlayerIndex];
+                  if (!player) return;
 
-            {AttackActionIsFull && (
-              <div style={{ color: "gray", marginTop: "8px" }}>
-                所有玩家都已提交攻擊行動
-              </div>
-            )}
+                  game.addAttackAction({
+                    player,
+                    battlefieldId: selectedTarget as "A" | "B" | "C",
+                    cardType: selectedCardType as AttackCardType,
+                    element:
+                      selectedCardType === "魔法棒"
+                        ? (selectedElement as PlayerElementType)
+                        : undefined,
+                  });
 
-            <div>
-              <div>
-                <h3>攻擊行動</h3>
-                <ul>
-                  {game.attackActions.map((attackAction, index) => (
-                    <li key={index}>
-                      {attackAction.player.name} 使用{" "}
-                      {`${attackAction.cardType} ${attackAction.element}`} 攻擊{" "}
-                      {attackAction.battlefieldId} 戰場
-                    </li>
-                  ))}
-                </ul>
+                  setCurrentPlayerIndex((prev) => {
+                    const nextIndex = prev + 1;
+                    if (nextIndex >= game.players.length) {
+                      setAttackActionIsFull(true);
+                      return prev;
+                    }
 
+                    // ⚠️ 如果不是魔法棒才重設選項
+                    if (selectedCardType !== "魔法棒") {
+                      const nextPlayer = game.players[nextIndex];
+                      const availableCards = getAvailableCardTypes(nextPlayer);
+                      const defaultCard = availableCards[0] ?? "魔法棒";
+                      setSelectedCardType(defaultCard);
+                      if (defaultCard === "魔法棒") {
+                        setSelectedElement("火");
+                      }
+                    }
+
+                    return nextIndex;
+                  });
+                }}
+              >
+                提交攻擊行動
+              </button>
+
+              {AttackActionIsFull && (
+                <div style={{ color: "gray", marginTop: "8px" }}>
+                  所有玩家都已提交攻擊行動
+                </div>
+              )}
+            </div>
+            <div id="cancelAttack">
+              <h3>
+                攻擊行動
                 <button
                   onClick={() => {
+                    game.cancelLastAttackAction();
+
                     if (AttackActionIsFull) {
                       setAttackActionIsFull(false);
-                      console.log();
+                      const lastIndex = game.players.length - 1;
+                      setCurrentPlayerIndex(lastIndex);
+
+                      const player = game.players[lastIndex];
+                      const availableCards = getAvailableCardTypes(player);
+                      const defaultCard = availableCards[0] ?? "魔法棒";
+                      setSelectedCardType(defaultCard);
+                      if (defaultCard === "魔法棒") {
+                        setSelectedElement("火");
+                      }
                     } else {
-                      setCurrentPlayerIndex((prev) => prev - 1);
+                      setCurrentPlayerIndex((prev) => {
+                        const newIndex = Math.max(prev - 1, 0);
+                        const player = game.players[newIndex];
+
+                        const availableCards = getAvailableCardTypes(player);
+                        const defaultCard = availableCards[0] ?? "魔法棒";
+                        setSelectedCardType(defaultCard);
+                        if (defaultCard === "魔法棒") {
+                          setSelectedElement("火");
+                        }
+
+                        return newIndex;
+                      });
                     }
-                    game.cancelLastAttackAction();
                   }}
-                  disabled={currentPlayerIndex === 0}
+                  disabled={currentPlayerIndex === 0 && !AttackActionIsFull}
                 >
                   取消上一個攻擊行動
                 </button>
-              </div>
+              </h3>
+              <ul>
+                {game.attackActions.map((attackAction, index) => (
+                  <li key={index}>
+                    {attackAction.player.name} 使用{" "}
+                    {`${attackAction.cardType} ${attackAction.element}`} 攻擊{" "}
+                    {attackAction.battlefieldId} 戰場
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
-          <div className="battlefield-preview">
+          <div className="preview-control">
             <h2>攻擊預覽</h2>
-            <div id="preview-slot">
-              {game.previewBattlefieldAfterActions().map((slot) => {
+            <div className="battlefieldslots">
+              {game.previewSlots.map((slot) => {
                 const id = slot.id;
                 const monster = slot.monster;
 
                 return (
-                  <div className="slot" key={id}>
-                    <h3>戰場{id}</h3>
-                    {monster ? (
-                      <>
-                        <div className="monster-info-top">
-                          <span
-                            id="monster-type"
-                            className={
-                              monster.type === "火"
-                                ? "fire"
-                                : monster.type === "水"
-                                ? "water"
-                                : monster.type === "木"
-                                ? "wood"
-                                : "none"
-                            }
-                          >
-                            {monster.type}
-                          </span>
-                          <span>
-                            {monster.HP}/{monster.maxHP}❤️
-                          </span>
-                        </div>
-                        <div>
-                          <span
-                            id="monster-name"
-                            className={
-                              monster.type === "火"
-                                ? "fire"
-                                : monster.type === "水"
-                                ? "water"
-                                : monster.type === "木"
-                                ? "wood"
-                                : "none"
-                            }
-                          >
-                            {monster.name}
-                          </span>
-                        </div>
-                        <div>
-                          <span>
-                            {monster.loot.gold > 0 &&
-                              `🪙x${monster.loot.gold} `}
-                            {monster.loot.manaStone > 0 &&
-                              `🪨x${monster.loot.manaStone} `}
-                            {monster.loot.spellCards &&
-                              `${monster.loot.spellCards}`}
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      <div>空</div>
-                    )}
-                  </div>
+                  <Fragment key={id}>
+                    <MonsterCard monster={monster} title={`戰場${id}`} />
+                  </Fragment>
                 );
               })}
             </div>
@@ -638,17 +571,6 @@ function App() {
         </div>
       )}
 
-      <div>
-        <h2>遊戲日誌</h2>
-        <ul>
-          {game.supervisorLog.map((log, index) => (
-            <li key={index}>
-              <span className="timestamp">{log.round}</span>
-              <span className="message">{log.message}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
       <div>
         <h2>遊戲狀態預覽</h2>
         <pre>{JSON.stringify(gameState, null, 2)}</pre>
