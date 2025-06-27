@@ -42,7 +42,7 @@ export default function GameStateSender({
           })
         );
       }
-    }, 1000);
+    }, 2500);
 
     return () => {
       clearInterval(interval);

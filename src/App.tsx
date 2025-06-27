@@ -1,11 +1,10 @@
-import { useRef, useState, Fragment } from "react";
+import { useState, Fragment } from "react";
 import useGameLogic from "./game/useGameLogic";
 import type {
   Player,
   PlayerElementType,
   AttackCardType,
   EventEffect,
-  Monster,
 } from "./game/useGameLogic";
 import GameStateSender from "./hook/GameStateSender";
 import MonsterCard from "./component/MonsterCard";
@@ -201,6 +200,21 @@ function App() {
                   <h3>第{playerData.id}組</h3>
                   <button onClick={() => toggleEditPlayer(p.id)}>
                     {editing ? "完成編輯" : "編輯"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const players = [...game.players]; // 複製一份避免直接 mutate
+                      const index = players.findIndex(
+                        (pl) => pl.id === playerData.id
+                      );
+                      if (index > -1) {
+                        const [target] = players.splice(index, 1); // 移除該玩家
+                        players.unshift(target); // 插入到最前
+                        game.setPlayers(players); // 更新狀態
+                      }
+                    }}
+                  >
+                    移至最前
                   </button>
                 </div>
 

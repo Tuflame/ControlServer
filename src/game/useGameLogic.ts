@@ -36,7 +36,7 @@ export const skillTable: Record<string, Skill> = {
     name: "屬性輪轉",
     description: "每受到一次攻擊，按照 火 → 水 → 木 → 火 的順序變換屬性。",
     trigger: "onHit",
-    applyEffect: (slotid, slots, queue, updateSlots, updateQueue) => {
+    applyEffect: (slotid, slots, _queue, updateSlots, _updateQueue) => {
       const order: ElementType[] = ["火", "水", "木"];
       const slotIndex = ["A", "B", "C"].indexOf(slotid);
       const monster = slots[slotIndex].monster;
@@ -58,7 +58,7 @@ export const skillTable: Record<string, Skill> = {
     name: "恢復",
     description: "每回合結束時恢復 1 點生命值。",
     trigger: "onTurnEnd",
-    applyEffect: (slotid, slots, queue, updateSlots, updateQueue) => {
+    applyEffect: (slotid, slots, _queue, updateSlots, _updateQueue) => {
       const slotIndex = ["A", "B", "C"].indexOf(slotid);
       const monster = slots[slotIndex].monster;
       if (!monster) return;
@@ -774,6 +774,7 @@ export default function useGameLogic() {
       } else if (action.cardType === "冰凍法術") {
         slot.lastIcedBy = currentPlayer.id;
         target.HP -= 2;
+        currentPlayer.loot.spellCards.冰凍法術--;
         addSupervisorLog(
           `[${slot.id}] 第${currentPlayer.id}組 使用 冰凍法術 造成 2 點傷害`
         );
@@ -790,6 +791,7 @@ export default function useGameLogic() {
         );
       } else if (action.cardType === "爆裂法術") {
         addSupervisorLog(`[ALL] 第${currentPlayer.id}組 使用 爆裂法術`);
+        currentPlayer.loot.spellCards.爆裂法術--;
         for (let i = 0; i < updatedSlots.length; i++) {
           const s = updatedSlots[i];
           const m = s.monster;
@@ -840,6 +842,7 @@ export default function useGameLogic() {
           }
         }
       } else if (action.cardType === "毒藥法術") {
+        currentPlayer.loot.spellCards.毒藥法術--;
         if (!slot.poisonedBy) slot.poisonedBy = [];
         if (!slot.poisonedBy.includes(currentPlayer.id)) {
           slot.poisonedBy.push(currentPlayer.id);
@@ -1170,7 +1173,7 @@ export default function useGameLogic() {
           let updatedSlots = structuredClone(battlefieldSlots);
           let updatedQueue = structuredClone(queueMonsters);
 
-          updatedSlots.forEach((slot, index) => {
+          updatedSlots.forEach((slot) => {
             const monster = slot.monster;
             if (!monster || !monster.skill) return;
 
