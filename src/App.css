@@ -172,12 +172,11 @@ option:focus {
   color: #33ccff;
 }
 
-.boom {
-  color: #ff7700;
-}
-
 .wood {
   color: #00ff00;
+}
+.boom {
+  color: #ff7700;
 }
 
 .ice {

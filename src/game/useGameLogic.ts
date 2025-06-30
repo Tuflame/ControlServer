@@ -795,7 +795,16 @@ export default function useGameLogic() {
         for (let i = 0; i < updatedSlots.length; i++) {
           const s = updatedSlots[i];
           const m = s.monster;
-          if (!m || s.lastIcedBy) continue;
+          if (!m) continue;
+
+          if (s.lastIcedBy) {
+            addSupervisorLog(
+              `[${s.id}] 因 ${players[s.lastIcedBy].name} 的冰凍，第${
+                currentPlayer.id
+              }組 攻擊失效`
+            );
+            continue;
+          }
 
           m.HP -= 2;
           addSupervisorLog(

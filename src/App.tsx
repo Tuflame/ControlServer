@@ -557,13 +557,50 @@ function App() {
                 </button>
               </h3>
               <ul>
-                {game.attackActions.map((attackAction, index) => (
-                  <li key={index}>
-                    {attackAction.player.name} 使用{" "}
-                    {`${attackAction.cardType} ${attackAction.element}`} 攻擊{" "}
-                    {attackAction.battlefieldId} 戰場
-                  </li>
-                ))}
+                {game.attackActions.map((attackAction, index) => {
+                  const { player, cardType, element, battlefieldId } =
+                    attackAction;
+
+                  let cardDescription = cardType;
+                  if (cardType === "魔法棒" && element) {
+                    const power = player.attack[element];
+                    cardDescription += ` (${element} ${power})`;
+                  }
+
+                  return (
+                    <li key={index}>
+                      {player.name} 使用{" "}
+                      <span
+                        className={
+                          cardType === "魔法棒"
+                            ? element === "火"
+                              ? "fire"
+                              : element === "水"
+                              ? "water"
+                              : element === "木"
+                              ? "wood"
+                              : ""
+                            : cardType === "冰凍法術"
+                            ? "ice"
+                            : cardType === "毒藥法術"
+                            ? "poison"
+                            : cardType === "炸彈法術"
+                            ? "boom"
+                            : ""
+                        }
+                      >
+                        {cardType}
+                        {cardType === "魔法棒" && element
+                          ? ` (${element})`
+                          : ""}
+                      </span>{" "}
+                      {cardType === "魔法棒" && element
+                        ? player.attack[element]
+                        : ""}{" "}
+                      攻擊 {battlefieldId} 戰場
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </div>
