@@ -137,8 +137,8 @@ type GameState = {
 
 export const monsterNameTable: Record<number, Record<ElementType, string[]>> = {
   1: {
-    火: ["火史萊姆", "火精靈", "火丘丘"],
-    水: ["水史萊姆", "水精靈", "冰丘丘"],
+    火: ["火史萊姆", "火精靈"],
+    水: ["水史萊姆", "水精靈"],
     木: ["草史萊姆", "草精靈"],
     無: ["骷髏", "鬼魂"],
   },
@@ -149,22 +149,22 @@ export const monsterNameTable: Record<number, Record<ElementType, string[]>> = {
     無: ["穴居人"],
   },
   3: {
+    火: ["火焰蜥蜴"],
+    水: ["冰霜蜥蜴"],
+    木: ["蜥蜴戰士"],
+    無: ["西諾克斯"],
+  },
+  4: {
     火: ["Cappuccino Assassino", "Ballerina Cappuccina"],
     水: ["Tralalero Tralala", "Trippi Troppi"],
     木: ["BrrBrr Patapim", "Lirilì Larilà"],
     無: ["TungTung Sahur", "Bombardiro Crocodilo"],
   },
-  4: {
-    火: ["火焰巨人", "奧爾龍"],
-    水: ["冰霜巨人", "聶爾龍"],
-    木: ["森林巨人", "蜥蜴戰士"],
-    無: ["暗影巨人", "西諾克斯"],
-  },
   5: {
     火: ["三頭龍"],
     水: ["三頭龍"],
     木: ["三頭龍"],
-    無: ["暗影龍"],
+    無: ["暗影巨人"],
   },
 };
 
