@@ -15,7 +15,7 @@
   background: white;
   padding: 30px 40px;
   border-radius: 12px;
-  max-width: 500px;
+  max-width: 700px;
   width: 90%;
   box-shadow: 0 6px 30px rgba(0, 0, 0, 0.3);
   display: flex;
@@ -34,11 +34,13 @@
   font-weight: bold;
   margin-bottom: 4px;
   color: #444;
+  text-align: center;
 }
 
 .modal input,
 .modal select {
   width: 100%;
+  max-width: fit-content;
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid #ccc;
@@ -78,4 +80,19 @@
 
 .button-row button:last-child:hover {
   background-color: #e53935;
+}
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap; /* 當空間不足時允許換行 */
+  gap: 16px;
+  align-items: center;
+}
+.form-row label {
+  min-width: 60px;
+  margin-bottom: 0;
+}
+.form-row > * {
+  flex: 1;
+  min-width: 120px;
 }

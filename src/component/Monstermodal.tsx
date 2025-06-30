@@ -63,71 +63,74 @@ export default function MonsterInputModal({
     <div className="modal-overlay">
       <div className="modal">
         <h2>自訂怪物建立</h2>
+        <div className="form-row">
+          <label>屬性：</label>
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value as ElementType)}
+          >
+            <option value="火">火</option>
+            <option value="水">水</option>
+            <option value="木">木</option>
+            <option value="無">無</option>
+          </select>
 
-        <label>屬性：</label>
-        <select
-          value={type}
-          onChange={(e) => setType(e.target.value as ElementType)}
-        >
-          <option value="火">火</option>
-          <option value="水">水</option>
-          <option value="木">木</option>
-          <option value="無">無</option>
-        </select>
+          <label>名稱：</label>
+          <select value={name} onChange={(e) => setName(e.target.value)}>
+            {nameOptions.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
 
-        <label>名稱：</label>
-        <select value={name} onChange={(e) => setName(e.target.value)}>
-          {nameOptions.map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
+          <label>最大 HP：</label>
+          <input
+            type="number"
+            value={maxHP}
+            onChange={(e) => setMaxHP(Number(e.target.value))}
+          />
+        </div>
+        <div className="form-row">
+          <label>金幣：</label>
+          <input
+            type="number"
+            value={gold}
+            onChange={(e) => setGold(Number(e.target.value))}
+          />
 
-        <label>最大 HP：</label>
-        <input
-          type="number"
-          value={maxHP}
-          onChange={(e) => setMaxHP(Number(e.target.value))}
-        />
+          <label>魔能石：</label>
+          <input
+            type="number"
+            value={manaStone}
+            onChange={(e) => setManaStone(Number(e.target.value))}
+          />
 
-        <label>金幣：</label>
-        <input
-          type="number"
-          value={gold}
-          onChange={(e) => setGold(Number(e.target.value))}
-        />
-
-        <label>魔能石：</label>
-        <input
-          type="number"
-          value={manaStone}
-          onChange={(e) => setManaStone(Number(e.target.value))}
-        />
-
-        <label>法術卡：</label>
-        <select
-          value={spellCard}
-          onChange={(e) => setSpellCard(e.target.value as SpellCardType | "")}
-        >
-          <option value="">無</option>
-          <option value="冰凍法術">冰凍法術</option>
-          <option value="炸彈法術">炸彈法術</option>
-          <option value="毒藥法術">毒藥法術</option>
-        </select>
-
-        <label>技能：</label>
-        <select
-          value={skill ?? ""}
-          onChange={(e) => {
-            const val = e.target.value;
-            setSkill(val === "" ? null : val);
-          }}
-        >
-          <option value="">無</option>
-          <option value="屬性輪轉">屬性輪轉</option>
-          <option value="恢復">恢復</option>
-        </select>
+          <label>法術卡：</label>
+          <select
+            value={spellCard}
+            onChange={(e) => setSpellCard(e.target.value as SpellCardType | "")}
+          >
+            <option value="">無</option>
+            <option value="冰凍法術">冰凍法術</option>
+            <option value="炸彈法術">炸彈法術</option>
+            <option value="毒藥法術">毒藥法術</option>
+          </select>
+        </div>
+        <div className="form-row">
+          <label>技能：</label>
+          <select
+            value={skill ?? ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSkill(val === "" ? null : val);
+            }}
+          >
+            <option value="">無</option>
+            <option value="屬性輪轉">屬性輪轉</option>
+            <option value="恢復">恢復</option>
+          </select>
+        </div>
 
         <div className="button-row">
           <button onClick={handleSubmit}>加入怪物</button>
