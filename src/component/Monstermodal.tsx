@@ -112,7 +112,7 @@ export default function MonsterInputModal({
         >
           <option value="">無</option>
           <option value="冰凍法術">冰凍法術</option>
-          <option value="爆裂法術">爆裂法術</option>
+          <option value="炸彈法術">炸彈法術</option>
           <option value="毒藥法術">毒藥法術</option>
         </select>
 
