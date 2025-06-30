@@ -56,7 +56,7 @@ export const skillTable: Record<string, Skill> = {
   },
   恢復: {
     name: "恢復",
-    description: "每回合結束時恢復 1 點生命值。",
+    description: "每回合結束時恢復 2 點生命值。",
     trigger: "onTurnEnd",
     applyEffect: (slotid, slots, _queue, updateSlots, _updateQueue) => {
       const slotIndex = ["A", "B", "C"].indexOf(slotid);
