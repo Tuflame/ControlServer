@@ -48,7 +48,7 @@ function App() {
     const cards: AttackCardType[] = [];
     if (player.loot.spellCards["魔法棒"] > 0) cards.push("魔法棒");
     if (player.loot.spellCards["冰凍法術"] > 0) cards.push("冰凍法術");
-    if (player.loot.spellCards["爆裂法術"] > 0) cards.push("爆裂法術");
+    if (player.loot.spellCards["炸彈法術"] > 0) cards.push("炸彈法術");
     if (player.loot.spellCards["毒藥法術"] > 0) cards.push("毒藥法術");
     return cards;
   };
@@ -308,16 +308,16 @@ function App() {
 
                   <div>
                     <div className="form-pair">
-                      <label className="boom">爆裂法術</label>
+                      <label className="boom">炸彈法術</label>
                       <input
                         type="number"
-                        value={playerData.loot.spellCards["爆裂法術"]}
+                        value={playerData.loot.spellCards["炸彈法術"]}
                         disabled={!editing}
                         onChange={(e) =>
                           updatePlayer(
                             p.id,
                             (pl) =>
-                              (pl.loot.spellCards["爆裂法術"] = Number(
+                              (pl.loot.spellCards["炸彈法術"] = Number(
                                 e.target.value
                               ))
                           )

@@ -2,7 +2,7 @@ type GamePhase = "準備開始遊戲" | "事件" | "準備" | "行動" | "結算
 
 type ElementType = "火" | "水" | "木" | "無";
 type PlayerElementType = Exclude<ElementType, "無">;
-type SpellCardType = "冰凍法術" | "爆裂法術" | "毒藥法術";
+type SpellCardType = "冰凍法術" | "炸彈法術" | "毒藥法術";
 type AttackCardType = "魔法棒" | SpellCardType;
 
 type Player = {
@@ -435,17 +435,17 @@ export default function useGameLogic() {
         id: i,
         name: `玩家${i}`,
         attack: {
-          火: 1,
-          水: 1,
-          木: 1,
+          火: 0,
+          水: 0,
+          木: 0,
         },
         loot: {
           gold: 0,
-          manaStone: 2,
+          manaStone: 3,
           spellCards: {
             魔法棒: 1,
             冰凍法術: 0,
-            爆裂法術: 0,
+            炸彈法術: 0,
             毒藥法術: 0,
           },
         },
@@ -529,7 +529,7 @@ export default function useGameLogic() {
     };
 
     const getRandomSpellCard = (): SpellCardType => {
-      const cards: SpellCardType[] = ["冰凍法術", "爆裂法術", "毒藥法術"];
+      const cards: SpellCardType[] = ["冰凍法術", "炸彈法術", "毒藥法術"];
       const index = Math.floor(Math.random() * cards.length);
       return cards[index];
     };
@@ -730,7 +730,7 @@ export default function useGameLogic() {
       if (slot.lastIcedBy === currentPlayer.id) {
         addSupervisorLog(`[${slot.id}] 第${currentPlayer.id}組 的冰凍解除`);
         slot.lastIcedBy = null;
-      } else if (slot.lastIcedBy) {
+      } else if (slot.lastIcedBy && action.cardType !== "炸彈法術") {
         const freezer = updatedPlayers.find((p) => p.id === slot.lastIcedBy);
         addSupervisorLog(
           `[${slot.id}] 因 ${freezer?.name} 的冰凍，第${currentPlayer.id}組 攻擊失效`
@@ -789,13 +789,13 @@ export default function useGameLogic() {
           (q) => (updatedQueue = q),
           true
         );
-      } else if (action.cardType === "爆裂法術") {
-        addSupervisorLog(`[ALL] 第${currentPlayer.id}組 使用 爆裂法術`);
-        currentPlayer.loot.spellCards.爆裂法術--;
+      } else if (action.cardType === "炸彈法術") {
+        addSupervisorLog(`[ALL] 第${currentPlayer.id}組 使用 炸彈法術`);
+        currentPlayer.loot.spellCards.炸彈法術--;
         for (let i = 0; i < updatedSlots.length; i++) {
           const s = updatedSlots[i];
           const m = s.monster;
-          if (!m) continue;
+          if (!m || s.lastIcedBy) continue;
 
           m.HP -= 2;
           addSupervisorLog(
@@ -956,7 +956,7 @@ export default function useGameLogic() {
       // 冰凍判斷
       if (slot.lastIcedBy === player.id) {
         slot.lastIcedBy = null;
-      } else if (slot.lastIcedBy) {
+      } else if (slot.lastIcedBy && action.cardType !== "炸彈法術") {
         continue;
       }
 
@@ -1006,11 +1006,11 @@ export default function useGameLogic() {
           (s) => (clonedSlots = s),
           (q) => (clonedQueue = q)
         );
-      } else if (action.cardType === "爆裂法術") {
+      } else if (action.cardType === "炸彈法術") {
         for (let i = 0; i < clonedSlots.length; i++) {
           const s = clonedSlots[i];
           if (!s.monster) continue;
-
+          if (s.lastIcedBy) continue;
           s.monster.HP -= 2;
 
           handleSkillTrigger(
@@ -1039,7 +1039,7 @@ export default function useGameLogic() {
         }
       }
 
-      // 死亡判斷（非爆裂後才需要）
+      // 死亡判斷（非炸彈後才需要）
       if (monster.HP <= 0) {
         clonedSlots[index] = {
           id: slot.id,
