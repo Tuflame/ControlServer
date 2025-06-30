@@ -8,14 +8,14 @@ export default function GameStateSender({
 }: {
   gamestate: GameState | null;
 }) {
-  const [localUrl, setLocalUrl] = useState("");
-  const [ngrokUrl, setNgrokUrl] = useState("");
   const [connected, setConnected] = useState(false);
   const [usingNgrok, setUsingNgrok] = useState(false);
 
   const socketRef = useRef<WebSocket | null>(null);
   const sendIntervalRef = useRef<number | null>(null);
   const latestGameState = useRef<GameState | null>(null);
+  const localUrlRef = useRef("");
+  const ngrokUrlRef = useRef("");
 
   // 當收到新的 gameState 更新時記錄
   useEffect(() => {
@@ -76,7 +76,7 @@ export default function GameStateSender({
     if (localWs.startsWith("ws")) {
       tryConnect(localWs, ngrokWs);
     } else if (ngrokWs.startsWith("ws")) {
-      tryConnect(ngrokWs); // 無本地選項直接 ngrok
+      tryConnect(ngrokWs);
     }
   };
 
@@ -90,8 +90,8 @@ export default function GameStateSender({
     const localWs = localUrl.replace(/^http/, "ws");
     const ngrokWs = ngrokUrl.startsWith("ws") ? ngrokUrl : "";
 
-    setLocalUrl(localWs);
-    setNgrokUrl(ngrokWs);
+    localUrlRef.current = localWs;
+    ngrokUrlRef.current = ngrokWs;
 
     connectWithFallback(localWs, ngrokWs);
   };
