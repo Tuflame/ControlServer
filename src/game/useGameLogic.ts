@@ -435,13 +435,13 @@ export default function useGameLogic() {
         id: i,
         name: `玩家${i}`,
         attack: {
-          火: 0,
-          水: 0,
-          木: 0,
+          火: 1,
+          水: 1,
+          木: 1,
         },
         loot: {
           gold: 0,
-          manaStone: 3,
+          manaStone: 1,
           spellCards: {
             魔法棒: 1,
             冰凍法術: 0,
@@ -984,6 +984,10 @@ export default function useGameLogic() {
           木: "火",
           無: "無",
         };
+
+        if (element === eventFlags.disableElement) {
+          continue;
+        }
 
         let dmg = base;
         if (!eventFlags.allAttackNeutral) {
